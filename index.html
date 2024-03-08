@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+
+        canvas {
+            border: 1px solid #000;
+        }
+
+        #start-instruction {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            font-size: 16px;
+            color: #333;
+        }
+    </style>
+    <title>Snake Game</title>
+</head>
+<body>
+    <div id="start-instruction">Houd het pijltje naar beneden ingedrukt om te beginnen.</div>
+    <canvas id="snakeCanvas" width="400" height="400"></canvas>
+    <div id="score-container">
+        <p>Score: <span id="score">0</span></p>
+        <p>Highscore: <span id="highscore">0</span></p>
+    </div>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const canvas = document.getElementById('snakeCanvas');
+            const ctx = canvas.getContext('2d');
+
+            const boxSize = 20;
+            const canvasSize = 400;
+            const initialSnakeLength = 5;
+
+            let snake = [];
+            for (let i = 0; i < initialSnakeLength; i++) {
+                snake.push({ x: i, y: 0, color: 'green' });
+            }
+
+            let food = generateFood();
+            let score = 0;
+            let highscore = 0;
+
+            let d = 'RIGHT';
+            let isGameOver = false;
+            let isGameStarted = false;
+
+            let speed = 100; // Initial speed (milliseconds per frame)
+            const maxSpeed = 100;
+
+            document.addEventListener('keydown', function(event) {
+                if (isGameOver) return;
+
+                if (!isGameStarted && event.key === 'ArrowDown') {
+                    isGameStarted = true;
+                    document.getElementById('start-instruction').style.display = 'none';
+                }
+
+                if (isGameStarted) {
+                    if (event.key === 'ArrowUp' && d !== 'DOWN') {
+                        d = 'UP';
+                    } else if (event.key === 'ArrowDown' && d !== 'UP') {
+                        d = 'DOWN';
+                    } else if (event.key === 'ArrowLeft' && d !== 'RIGHT') {
+                        d = 'LEFT';
+                    } else if (event.key === 'ArrowRight' && d !== 'LEFT') {
+                        d = 'RIGHT';
+                    }
+                }
+            });
+
+            function draw() {
+                // Clear canvas
+                ctx.clearRect(0, 0, canvasSize, canvasSize);
+
+                // Draw snake
+                for (let i = 0; i < snake.length; i++) {
+                    ctx.fillStyle = snake[i].color;
+                    ctx.fillRect(snake[i].x * boxSize, snake[i].y * boxSize, boxSize, boxSize);
+
+                    ctx.strokeStyle = 'black';
+                    ctx.strokeRect(snake[i].x * boxSize, snake[i].y * boxSize, boxSize, boxSize);
+
+                    // Draw a face on the head of the snake
+                    if (i === 0) {
+                        ctx.fillStyle = 'black';
+                        ctx.beginPath();
+                        ctx.arc(snake[i].x * boxSize + boxSize / 2, snake[i].y * boxSize + boxSize / 2, boxSize / 5, 0, 2 * Math.PI);
+                        ctx.fill();
+                    }
+                }
+
+                // Draw food
+                ctx.fillStyle = 'red';
+                ctx.fillRect(food.x * boxSize, food.y * boxSize, boxSize, boxSize);
+
+                // Move snake
+                let snakeX = snake[0].x;
+                let snakeY = snake[0].y;
+
+                if (d === 'RIGHT') snakeX++;
+                if (d === 'LEFT') snakeX--;
+                if (d === 'UP') snakeY--;
+                if (d === 'DOWN') snakeY++;
+
+                // Check collision with food
+                if (snakeX === food.x && snakeY === food.y) {
+                    // Generate new food
+                    food = generateFood();
+                    // Increase score by 1
+                    score++;
+                    // Increase snake length and make the new segment green
+                    snake.unshift({ x: snakeX, y: snakeY, color: 'green' });
+
+                    // Increase speed, but not beyond the maximum speed
+                    if (speed > maxSpeed) {
+                        speed -= 5;
+                    }
+                } else {
+                    // Remove the tail
+                    snake.pop();
+                    // Add new head with the same color
+                    snake.unshift({ x: snakeX, y: snakeY, color: 'green' });
+                }
+
+                // Check collision with walls
+                if (snakeX < 0 || snakeY < 0 || snakeX >= canvasSize / boxSize || snakeY >= canvasSize / boxSize) {
+                    // Update highscore
+                    updateHighscore();
+                    // Game over
+                    resetGame();
+                }
+
+                // Check collision with itself
+                for (let i = 1; i < snake.length; i++) {
+                    if (snakeX === snake[i].x && snakeY === snake[i].y) {
+                        // Update highscore
+                        updateHighscore();
+                        // Game over
+                        resetGame();
+                    }
+                }
+
+                // Update score on the page
+                document.getElementById('score').textContent = score;
+            }
+
+            function generateFood() {
+                const foodX = Math.floor(Math.random() * (canvasSize / boxSize));
+                const foodY = Math.floor(Math.random() * (canvasSize / boxSize));
+
+                return { x: foodX, y: foodY };
+            }
+
+            function resetGame() {
+                isGameOver = true;
+
+                // Update highscore
+                updateHighscore();
+
+                // Reset snake, food, and score after a delay
+                setTimeout(() => {
+                    isGameOver = false;
+                    isGameStarted = false;
+                    document.getElementById('start-instruction').style.display = 'block';
+                    snake = [];
+                    for (let i = 0; i < initialSnakeLength; i++) {
+                        snake.push({ x: i, y: 0, color: 'green' });
+                    }
+                    food = generateFood();
+                    score = 0;
+                    d = 'RIGHT';
+                    speed = 100; // Reset speed to the initial value
+                }, 500);
+            }
+
+            function updateHighscore() {
+                if (score > highscore) {
+                    highscore = score;
+                    document.getElementById('highscore').textContent = highscore;
+                }
+            }
+
+            // Draw once initially
+            draw();
+
+            // Start the game loop with setInterval
+            setInterval(() => {
+                if (!isGameOver && isGameStarted) {
+                    draw();
+                }
+            }, speed); // Adjust the interval as needed
+        });
+    </script>
+</body>
+</html>
